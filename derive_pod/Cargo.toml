@@ -1,0 +1,15 @@
+[package]
+name = "derive_pod"
+version = "0.1.0"
+authors = ["Casper <CasualX@users.noreply.github.com>"]
+edition = "2018"
+license = "MIT"
+
+description = "Implement the Pod trait safely with a derive macro."
+documentation = "https://docs.rs/derive_pod/"
+repository = "https://github.com/CasualX/dataview"
+readme = "readme.md"
+
+[lib]
+proc-macro = true
+path = "lib.rs"

@@ -1,0 +1,26 @@
+[workspace]
+members = [".", "./derive_pod"]
+
+[package]
+name = "dataview"
+version = "0.1.0"
+authors = ["Casper <CasualX@users.noreply.github.com>"]
+edition = "2018"
+license = "MIT"
+
+description = "Safe transmute between types and bit patterns of the same length."
+documentation = "https://docs.rs/dataview/"
+repository = "https://github.com/CasualX/dataview"
+readme = "readme.md"
+keywords = ["binary", "data", "view", "pod"]
+categories = ["parser-implementations"]
+
+[package.metadata.docs.rs]
+features = ["derive_pod"]
+
+[features]
+default = ["derive_pod"]
+nightly = []
+
+[dependencies]
+derive_pod = { path = "./derive_pod", version = "0.1", optional = true }
