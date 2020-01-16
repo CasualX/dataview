@@ -49,7 +49,7 @@ impl DataView {
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub fn try_read_slice<T: Pod>(&self, offset: usize, len: usize) -> Option<&[T]> {
+	pub fn try_slice<T: Pod>(&self, offset: usize, len: usize) -> Option<&[T]> {
 		unsafe {
 			let byte_size = usize::checked_mul(len, mem::size_of::<T>())?;
 			let slice = self.0.get(offset..offset + byte_size)?;
@@ -61,7 +61,7 @@ impl DataView {
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub fn try_read_slice_mut<T: Pod>(&mut self, offset: usize, len: usize) -> Option<&mut [T]> {
+	pub fn try_slice_mut<T: Pod>(&mut self, offset: usize, len: usize) -> Option<&mut [T]> {
 		unsafe {
 			let byte_size = usize::checked_mul(len, mem::size_of::<T>())?;
 			let slice = self.0.get_mut(offset..offset + byte_size)?;
@@ -73,7 +73,7 @@ impl DataView {
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub fn try_read_many<T: Pod>(&self, offset: usize) -> Option<&[T]> {
+	pub fn try_slice_tail<T: Pod>(&self, offset: usize) -> Option<&[T]> {
 		unsafe {
 			let slice = self.0.get(offset..)?;
 			if slice.as_ptr() as usize % mem::align_of::<T>() != 0 {
@@ -85,7 +85,7 @@ impl DataView {
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub fn try_read_many_mut<T: Pod>(&mut self, offset: usize) -> Option<&mut [T]> {
+	pub fn try_slice_tail_mut<T: Pod>(&mut self, offset: usize) -> Option<&mut [T]> {
 		unsafe {
 			let slice = self.0.get_mut(offset..)?;
 			if slice.as_mut_ptr() as usize % mem::align_of::<T>() != 0 {
@@ -128,23 +128,23 @@ impl DataView {
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub fn read_slice<T: Pod>(&self, offset: usize, len: usize) -> &[T] {
-		self.try_read_slice(offset, len).expect("invalid offset")
+	pub fn slice<T: Pod>(&self, offset: usize, len: usize) -> &[T] {
+		self.try_slice(offset, len).expect("invalid offset")
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub fn read_slice_mut<T: Pod>(&mut self, offset: usize, len: usize) -> &mut [T] {
-		self.try_read_slice_mut(offset, len).expect("invalid offset")
+	pub fn slice_mut<T: Pod>(&mut self, offset: usize, len: usize) -> &mut [T] {
+		self.try_slice_mut(offset, len).expect("invalid offset")
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub fn read_many<T: Pod>(&self, offset: usize) -> &[T] {
-		self.try_read_many(offset).expect("invalid offset")
+	pub fn slice_tail<T: Pod>(&self, offset: usize) -> &[T] {
+		self.try_slice_tail(offset).expect("invalid offset")
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub fn read_many_mut<T: Pod>(&mut self, offset: usize) -> &mut [T] {
-		self.try_read_many_mut(offset).expect("invalid offset")
+	pub fn slice_tail_mut<T: Pod>(&mut self, offset: usize) -> &mut [T] {
+		self.try_slice_tail_mut(offset).expect("invalid offset")
 	}
 	/// Writes a value to the buffer.
 	#[inline(always)]
@@ -179,28 +179,28 @@ impl DataView {
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub unsafe fn read_slice_unchecked<T: Pod>(&self, offset: usize, len: usize) -> &[T] {
+	pub unsafe fn slice_unchecked<T: Pod>(&self, offset: usize, len: usize) -> &[T] {
 		let byte_size = usize::wrapping_mul(len, mem::size_of::<T>());
 		let slice = self.0.get_unchecked(offset..offset + byte_size);
 		slice::from_raw_parts(slice.as_ptr() as *const T, len)
 	}
 	/// Reads an aligned slice from the buffer.
 	#[inline(always)]
-	pub unsafe fn read_slice_unchecked_mut<T: Pod>(&mut self, offset: usize, len: usize) -> &mut [T] {
+	pub unsafe fn slice_unchecked_mut<T: Pod>(&mut self, offset: usize, len: usize) -> &mut [T] {
 		let byte_size = usize::wrapping_mul(len, mem::size_of::<T>());
 		let slice = self.0.get_unchecked_mut(offset..offset + byte_size);
 		slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, len)
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub unsafe fn read_many_unchecked<T: Pod>(&self, offset: usize) -> &[T] {
+	pub unsafe fn slice_tail_unchecked<T: Pod>(&self, offset: usize) -> &[T] {
 		let slice = self.0.get_unchecked(offset..);
 		let len = slice.len() / mem::size_of::<T>();
 		slice::from_raw_parts(slice.as_ptr() as *const T, len)
 	}
 	/// Reads the largest slice from the buffer.
 	#[inline(always)]
-	pub unsafe fn read_many_unchecked_mut<T: Pod>(&mut self, offset: usize) -> &mut [T] {
+	pub unsafe fn slice_tail_unchecked_mut<T: Pod>(&mut self, offset: usize) -> &mut [T] {
 		let slice = self.0.get_unchecked_mut(offset..);
 		let len = slice.len() / mem::size_of::<T>();
 		slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut T, len)
@@ -211,5 +211,16 @@ impl DataView {
 		let byte_size = mem::size_of_val(value);
 		let slice = self.0.get_unchecked_mut(offset..offset + byte_size);
 		ptr::copy_nonoverlapping(value.as_bytes().as_ptr(), slice.as_mut_ptr(), byte_size);
+	}
+}
+
+impl AsRef<[u8]> for DataView {
+	fn as_ref(&self) -> &[u8] {
+		&self.0
+	}
+}
+impl AsMut<[u8]> for DataView {
+	fn as_mut(&mut self) -> &mut [u8] {
+		&mut self.0
 	}
 }
