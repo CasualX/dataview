@@ -1,12 +1,10 @@
 /*!
-The [`Pod` trait](trait.Pod.html) defines types which can be safely transmuted from any bit pattern.
+The [`Pod`] trait defines types which can be safely transmuted from any bit pattern.
 
-The [`DataView` type](struct.DataView.html) defines read and write data APIs to an underlying buffer.
- */
+The [`DataView`] type defines read and write data APIs to an underlying byte buffer.
+*/
 
 #![no_std]
-
-#![cfg_attr(feature = "nightly", feature(const_generics))]
 
 use core::{mem, slice};
 use core::marker::PhantomData;
@@ -16,7 +14,9 @@ pub use self::data_view::DataView;
 
 #[cfg(feature = "derive_pod")]
 #[doc(inline)]
-pub use derive_pod::Pod;
+pub use ::derive_pod::Pod;
+
+mod derive_pod;
 
 /// Defines types which can be safely transmuted from any bit pattern.
 ///
@@ -51,46 +51,95 @@ pub use derive_pod::Pod;
 ///
 /// Arrays and slices of pod types are also pod themselves.
 ///
-/// Due to limitations of stable Rust only specific array sizes implement the `Pod` trait.
-/// Enable the `nightly` feature on a nightly compiler to use const generics to implement the `Pod` trait for all array types.
-///
 /// When `Pod` is implemented for a user defined struct it must meet the following requirements:
 ///
-/// * Be annotated with `repr(C)` or `repr(transparent)`.
+/// * Must be annotated with `repr(C)` or `repr(transparent)`.
+/// * Must have every field's type implement `Pod` itself.
+/// * Must not have any padding between its fields, define dummy fields to cover the padding.
 ///
-/// * Have every field's type implement `Pod` itself.
-///
-/// * Not have any padding between its fields.
-///
-/// # Auto derive
+/// # Derive macro
 ///
 /// To help with safely implementing this trait for structs, a proc-macro is provided to implement the `Pod` trait if the requirements are satisfied.
 pub unsafe trait Pod: 'static {
 	/// Returns a zero-initialized instance of the type.
-	#[inline(always)]
+	#[inline]
 	fn zeroed() -> Self where Self: Sized {
 		unsafe { mem::zeroed() }
 	}
+
 	/// Returns the object's memory as a byte slice.
-	#[inline(always)]
+	#[inline]
 	fn as_bytes(&self) -> &[u8] {
 		unsafe { slice::from_raw_parts(self as *const _ as *const u8, mem::size_of_val(self)) }
 	}
+
 	/// Returns the object's memory as a mutable byte slice.
-	#[inline(always)]
+	#[inline]
 	fn as_bytes_mut(&mut self) -> &mut [u8] {
 		unsafe { slice::from_raw_parts_mut(self as *mut _ as *mut u8, mem::size_of_val(self)) }
 	}
+
 	/// Returns a data view into the object's memory.
-	#[inline(always)]
+	#[inline]
 	fn as_data_view(&self) -> &DataView {
 		unsafe { mem::transmute(self.as_bytes()) }
 	}
+
 	/// Returns a mutable data view into the object's memory.
-	#[inline(always)]
+	#[inline]
 	fn as_data_view_mut(&mut self) -> &mut DataView {
 		unsafe { mem::transmute(self.as_bytes_mut()) }
 	}
+
+	/// Safely transmutes to another type.
+	///
+	/// # Panics
+	///
+	/// This method panics if `sizeof(Self) != sizeof(T)`.
+	///
+	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
+	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
+	#[track_caller]
+	#[inline]
+	fn transmute<T: Pod>(self) -> T where Self: Sized {
+		assert_eq!(mem::size_of::<Self>(), mem::size_of::<T>(), "Self must have equal size to target type");
+		let result = unsafe { mem::transmute_copy(&self) };
+		mem::forget(self);
+		result
+	}
+
+	/// Safely transmutes references to another type.
+	///
+	/// # Panics
+	///
+	/// This method panics if `sizeof(Self) != sizeof(T)` or `alignof(Self) < alignof(T)`.
+	///
+	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
+	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
+	#[track_caller]
+	#[inline]
+	fn transmute_ref<T: Pod>(&self) -> &T where Self: Sized {
+		assert_eq!(mem::size_of_val(self), mem::size_of::<T>(), "Self must have equal size to target type");
+		assert!(mem::align_of_val(self) >= mem::align_of::<T>(), "Align of `Self` must be ge than `T`");
+		unsafe { &*(self as *const Self as *const T) }
+	}
+
+	/// Safely transmutes references to another type.
+	///
+	/// # Panics
+	///
+	/// This method panics if `sizeof(Self) != sizeof(T)` or `alignof(Self) < alignof(T)`.
+	///
+	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
+	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
+	#[track_caller]
+	#[inline]
+	fn transmute_mut<T: Pod>(&mut self) -> &mut T where Self: Sized {
+		assert_eq!(mem::size_of_val(self), mem::size_of::<T>(), "Self must have equal size to target type");
+		assert!(mem::align_of_val(self) >= mem::align_of::<T>(), "Align of `Self` must be ge than `T`");
+		unsafe { &mut *(self as *mut Self as *mut T) }
+	}
+
 	#[doc(hidden)]
 	fn _static_assert() {}
 }
@@ -118,42 +167,7 @@ unsafe impl<T: 'static> Pod for *mut T {}
 unsafe impl<T: 'static> Pod for PhantomData<T> {}
 
 unsafe impl<T: Pod> Pod for [T] {}
-
-#[cfg(not(feature = "nightly"))]
-macro_rules! impl_pod_array {
-	($($n:tt)*) => { $(unsafe impl<T: Pod> Pod for [T; $n] {})* };
-}
-#[cfg(not(feature = "nightly"))]
-impl_pod_array!(
-	0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-	32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64
-	80 100 128 160 192 256 512 768 1024 2048 4096);
-
-#[cfg(feature = "nightly")]
 unsafe impl<T: Pod, const N: usize> Pod for [T; N] {}
 
-/// Pod derive proc-macro implementation helper.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! derive_pod {
-	(
-		$(#[$meta:meta])*
-		$vis:vis struct $name:ident {
-			$(
-				$(#[$field_meta:meta])*
-				$field_vis:vis $field_name:ident: $field_ty:ty,
-			)+
-		}
-	) => {
-		unsafe impl $crate::Pod for $name
-			where Self: 'static $(, $field_ty: $crate::Pod)+
-		{
-			#[doc(hidden)]
-			fn _static_assert() {
-				// Assert that the struct has no padding by instantiating the transmute function
-				use ::core::mem;
-				let _ = mem::transmute::<$name, [u8; 0 $(+ mem::size_of::<$field_ty>())+]>;
-			}
-		}
-	};
-}
+#[cfg(test)]
+mod tests;
