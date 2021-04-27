@@ -2,21 +2,17 @@
 Auto derive the `Pod` trait.
 
 This crate should not be used directly, instead depend on the `dataview` crate with the `derive_pod` feature enabled.
- */
-
-extern crate proc_macro;
+*/
 
 use proc_macro::*;
 
-/// Auto derive the `Pod` trait for structs.
+/// Derive macro for the `Pod` trait.
 ///
 /// The type is checked for requirements of the `Pod` trait:
 ///
-/// * Be annotated with `repr(C)` or `repr(transparent)`.
-///
-/// * Have every field's type implement `Pod` itself.
-///
-/// * Not have any padding between its fields.
+/// * Must be annotated with `repr(C)` or `repr(transparent)`.
+/// * Must have every field's type implement `Pod` itself.
+/// * Must not have any padding between its fields, define dummy fields to cover the padding.
 ///
 /// # Compile errors
 ///
@@ -32,9 +28,16 @@ use proc_macro::*;
 ///
 /// * `error: no rules expected the token <`
 ///
-///   The struct contains generic parameters which are not supported. It may still be possible to manually implement `Pod` but extra care should be taken to ensure its invariants are upheld.
+///   The struct contains generic parameters which are not supported.
+///   It may still be possible to manually implement `Pod` but extra care should be taken to ensure its invariants are upheld.
+///
+/// * `error: no rules expected the token enum`  
+///   `error: no rules expected the token ;`
+///
+///   Deriving `Pod` implementations for enums, unit structs are not supported.
 ///
 #[proc_macro_derive(Pod)]
 pub fn pod_derive(input: TokenStream) -> TokenStream {
-	return format!("::dataview::derive_pod!{{ {} }}", input).parse().unwrap()
+	let invoke: TokenStream = "::dataview::derive_pod!".parse().unwrap();
+	invoke.into_iter().chain(Some(TokenTree::Group(Group::new(Delimiter::Brace, input)))).collect()
 }
