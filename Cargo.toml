@@ -21,5 +21,9 @@ features = ["derive_pod"]
 [features]
 default = ["derive_pod"]
 
+# Treat raw pointers as POD
+# This is unsound under Strict Provenance rules
+int2ptr = []
+
 [dependencies]
 derive_pod = { path = "./derive_pod", version = "0.1.1", optional = true }
