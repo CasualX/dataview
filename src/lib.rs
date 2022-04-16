@@ -161,7 +161,9 @@ unsafe impl Pod for usize {}
 unsafe impl Pod for f32 {}
 unsafe impl Pod for f64 {}
 
+#[cfg(feature = "int2ptr")]
 unsafe impl<T: 'static> Pod for *const T {}
+#[cfg(feature = "int2ptr")]
 unsafe impl<T: 'static> Pod for *mut T {}
 
 unsafe impl<T: 'static> Pod for PhantomData<T> {}
