@@ -3,12 +3,12 @@ members = [".", "./derive_pod"]
 
 [package]
 name = "dataview"
-version = "0.1.2"
+version = "1.0.0"
 authors = ["Casper <CasualX@users.noreply.github.com>"]
 edition = "2018"
 license = "MIT"
 
-description = "Safe transmute between types and bit patterns of the same length."
+description = "Safe transmute between types and byte arrays of the same size."
 documentation = "https://docs.rs/dataview/"
 repository = "https://github.com/CasualX/dataview"
 readme = "readme.md"
@@ -21,9 +21,8 @@ features = ["derive_pod"]
 [features]
 default = ["derive_pod"]
 
-# Treat raw pointers as POD
-# This is unsound under Strict Provenance rules
+# Treat raw pointers as POD, this is unsound under Strict Provenance rules
 int2ptr = []
 
 [dependencies]
-derive_pod = { path = "./derive_pod", version = "0.1.1", optional = true }
+derive_pod = { path = "./derive_pod", version = "0.1.2", optional = true }
