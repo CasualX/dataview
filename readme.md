@@ -6,9 +6,9 @@ DataView
 [![docs.rs](https://docs.rs/dataview/badge.svg)](https://docs.rs/dataview)
 [![Build status](https://github.com/CasualX/dataview/workflows/CI/badge.svg)](https://github.com/CasualX/dataview/actions)
 
-The `Pod` trait marks that it is safe to transmute between any bit pattern and an instance of the type.
+The `Pod` trait marks types whose values can be safely transmuted between byte arrays of the same size.
 
-The `DataView` struct provides methods to read and write pod types into the buffer.
+The `DataView` type defines read and write data APIs to an underlying byte buffer.
 
 Library
 -------
@@ -19,32 +19,31 @@ Documentation can be found on [docs.rs](https://docs.rs/dataview/).
 
 In your Cargo.toml, put
 
-```
+```text
 [dependencies]
-dataview = "0.1"
+dataview = "~1.0"
 ```
 
 Examples
 --------
 
 ```rust
-use dataview::Pod;
-
-#[derive(Pod)]
+#[derive(dataview::Pod)]
 #[repr(C)]
 struct MyType {
 	field: i32,
 }
 
-// Construct a zero initialized instance.
-let mut inst = MyType::zeroed();
+// Construct a zero initialized instance
+let mut inst: MyType = dataview::zeroed();
 assert_eq!(inst.field, 0);
 
-// Use the DataView interface to access the instance.
-inst.as_data_view_mut().write(2, &255_u8);
+// Use DataView to access the instance
+let view = dataview::DataView::from_mut(&mut inst);
+view.write(2, &255_u8);
 
-// Returns a byte view over the instance.
-assert_eq!(inst.as_bytes(), &[0, 0, 255, 0]);
+// Create a byte view over the instance
+assert_eq!(dataview::bytes(&inst), &[0, 0, 255, 0]);
 ```
 
 License

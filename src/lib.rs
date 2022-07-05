@@ -1,7 +1,28 @@
 /*!
-The [`Pod`] trait defines types which can be safely transmuted from any bit pattern.
+The [`Pod` trait](Pod) marks types whose values can be safely transmuted between byte arrays of the same size.
 
-The [`DataView`] type defines read and write data APIs to an underlying byte buffer.
+The [`DataView` type](DataView) defines read and write data APIs to an underlying byte buffer.
+
+# Examples
+
+```
+#[derive(dataview::Pod)]
+#[repr(C)]
+struct MyType {
+	field: i32,
+}
+
+// Construct a zero initialized instance
+let mut inst: MyType = dataview::zeroed();
+assert_eq!(inst.field, 0);
+
+// Use DataView to access the instance
+let view = dataview::DataView::from_mut(&mut inst);
+view.write(2, &255_u8);
+
+// Create a byte view over the instance
+assert_eq!(dataview::bytes(&inst), &[0, 0, 255, 0]);
+```
 */
 
 #![no_std]
@@ -16,133 +37,110 @@ pub use self::data_view::DataView;
 #[doc(inline)]
 pub use ::derive_pod::Pod;
 
-mod derive_pod;
+#[cfg(feature = "derive_pod")]
+#[doc(hidden)]
+pub use ::derive_pod::FieldOffsets;
 
-/// Defines types which can be safely transmuted from any bit pattern.
-///
-/// # Examples
-///
-/// ```
-/// use dataview::Pod;
-///
-/// #[derive(Pod)]
-/// #[repr(C)]
-/// struct MyType {
-/// 	field: i32,
-/// }
-///
-/// // Construct a zero initialized instance.
-/// let mut inst = MyType::zeroed();
-/// assert_eq!(inst.field, 0);
-///
-/// // Use the DataView interface to access the instance.
-/// inst.as_data_view_mut().write(2, &255_u8);
-///
-/// // Returns a byte view over the instance.
-/// assert_eq!(inst.as_bytes(), &[0, 0, 255, 0]);
-/// ```
+mod derive_pod;
+mod field_offsets;
+mod offset_of;
+
+/// Types whose values can be safely transmuted between byte arrays of the same size.
 ///
 /// # Safety
 ///
-/// It must be safe to transmute between any bit pattern (with length equal to the size of the type) and Self.
+/// It must be safe to transmute between any byte array (with length equal to the size of the type) and `Self`.
 ///
-/// This is true for these primitive types: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `f32`, `f64` and the raw pointer types.
-/// Primitives such as `str` and `bool` are not pod because not every valid bit pattern is a valid instance of these types. Reference types are _never_ pod.
+/// This is true for these primitive types: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `f32`, `f64`.
+/// The raw pointer types are not pod under strict provenance rules but can be through the 'int2ptr' feature.
+/// Primitives such as `str` and `bool` are not pod because not every valid byte pattern is a valid instance of these types.
+/// References or types with lifetimes are _never_ pod.
 ///
 /// Arrays and slices of pod types are also pod themselves.
 ///
-/// When `Pod` is implemented for a user defined struct it must meet the following requirements:
+/// Note that it is legal for pod types to be a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts).
 ///
-/// * Must be annotated with `repr(C)` or `repr(transparent)`.
+/// When `Pod` is implemented for a user defined type it must meet the following requirements:
+///
+/// * Must be annotated with [`#[repr(C)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprc)
+///   or [`#[repr(transparent)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent).
 /// * Must have every field's type implement `Pod` itself.
 /// * Must not have any padding between its fields, define dummy fields to cover the padding.
 ///
 /// # Derive macro
 ///
-/// To help with safely implementing this trait for structs, a proc-macro is provided to implement the `Pod` trait if the requirements are satisfied.
-pub unsafe trait Pod: 'static {
-	/// Returns a zero-initialized instance of the type.
-	#[inline]
-	fn zeroed() -> Self where Self: Sized {
-		unsafe { mem::zeroed() }
-	}
+/// To help with safely implementing this trait for user defined types, a [derive macro](derive@Pod) is provided to implement the `Pod` trait if the requirements are satisfied.
+pub unsafe trait Pod: 'static {}
 
+/// Returns a zero-initialized instance of the type.
+///
+/// ```
+/// let v: i32 = dataview::zeroed();
+/// assert_eq!(v, 0);
+/// ```
+#[inline]
+pub fn zeroed<T: Pod>() -> T {
+	unsafe { mem::MaybeUninit::zeroed().assume_init() }
+}
+
+/// Returns the object's memory as a byte slice.
+///
+/// ```
+/// let v = 0xcdcdcdcd_u32;
+/// assert_eq!(dataview::bytes(&v), &[0xcd, 0xcd, 0xcd, 0xcd]);
+/// ```
+#[inline]
+pub fn bytes<T: ?Sized + Pod>(src: &T) -> &[u8] {
+	unsafe { slice::from_raw_parts(src as *const _ as *const u8, mem::size_of_val(src)) }
+}
+
+/// Returns the object's memory as a mutable byte slice.
+#[inline]
+pub fn bytes_mut<T: ?Sized + Pod>(src: &mut T) -> &mut [u8] {
+	unsafe { slice::from_raw_parts_mut(src as *mut _ as *mut u8, mem::size_of_val(src)) }
+}
+
+/// Helper trait to provide methods directly on the pod types.
+///
+/// Do not use this trait in any signatures, use [`Pod`] directly instead.
+/// There's a blanket impl that provides these methods for all pod types.
+pub trait PodMethods {
+	/// Returns a zero-initialized instance of the type.
+	fn zeroed() -> Self where Self: Sized;
 	/// Returns the object's memory as a byte slice.
+	fn as_bytes(&self) -> &[u8];
+	/// Returns the object's memory as a mutable byte slice.
+	fn as_bytes_mut(&mut self) -> &mut [u8];
+	/// Returns a data view into the object's memory.
+	fn as_data_view(&self) -> &DataView;
+	/// Returns a mutable data view into the object's memory.
+	fn as_data_view_mut(&mut self) -> &mut DataView;
+}
+
+impl<T: ?Sized + Pod> PodMethods for T {
+	#[inline]
+	fn zeroed() -> T where T: Sized {
+		zeroed()
+	}
 	#[inline]
 	fn as_bytes(&self) -> &[u8] {
-		unsafe { slice::from_raw_parts(self as *const _ as *const u8, mem::size_of_val(self)) }
+		bytes(self)
 	}
-
-	/// Returns the object's memory as a mutable byte slice.
 	#[inline]
 	fn as_bytes_mut(&mut self) -> &mut [u8] {
-		unsafe { slice::from_raw_parts_mut(self as *mut _ as *mut u8, mem::size_of_val(self)) }
+		bytes_mut(self)
 	}
-
-	/// Returns a data view into the object's memory.
 	#[inline]
 	fn as_data_view(&self) -> &DataView {
-		unsafe { mem::transmute(self.as_bytes()) }
+		DataView::from(self)
 	}
-
-	/// Returns a mutable data view into the object's memory.
 	#[inline]
 	fn as_data_view_mut(&mut self) -> &mut DataView {
-		unsafe { mem::transmute(self.as_bytes_mut()) }
+		DataView::from_mut(self)
 	}
-
-	/// Safely transmutes to another type.
-	///
-	/// # Panics
-	///
-	/// This method panics if `sizeof(Self) != sizeof(T)`.
-	///
-	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
-	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
-	#[track_caller]
-	#[inline]
-	fn transmute<T: Pod>(self) -> T where Self: Sized {
-		assert_eq!(mem::size_of::<Self>(), mem::size_of::<T>(), "Self must have equal size to target type");
-		let result = unsafe { mem::transmute_copy(&self) };
-		mem::forget(self);
-		result
-	}
-
-	/// Safely transmutes references to another type.
-	///
-	/// # Panics
-	///
-	/// This method panics if `sizeof(Self) != sizeof(T)` or `alignof(Self) < alignof(T)`.
-	///
-	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
-	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
-	#[track_caller]
-	#[inline]
-	fn transmute_ref<T: Pod>(&self) -> &T where Self: Sized {
-		assert_eq!(mem::size_of_val(self), mem::size_of::<T>(), "Self must have equal size to target type");
-		assert!(mem::align_of_val(self) >= mem::align_of::<T>(), "Align of `Self` must be ge than `T`");
-		unsafe { &*(self as *const Self as *const T) }
-	}
-
-	/// Safely transmutes references to another type.
-	///
-	/// # Panics
-	///
-	/// This method panics if `sizeof(Self) != sizeof(T)` or `alignof(Self) < alignof(T)`.
-	///
-	/// Ideally this method would assert the compatibility of the two types statically, unfortunately this is not currently possible.
-	/// If Rust gains support for asserting this with where bounds the runtime panic may be changed to a compiletime error in the future.
-	#[track_caller]
-	#[inline]
-	fn transmute_mut<T: Pod>(&mut self) -> &mut T where Self: Sized {
-		assert_eq!(mem::size_of_val(self), mem::size_of::<T>(), "Self must have equal size to target type");
-		assert!(mem::align_of_val(self) >= mem::align_of::<T>(), "Align of `Self` must be ge than `T`");
-		unsafe { &mut *(self as *mut Self as *mut T) }
-	}
-
-	#[doc(hidden)]
-	fn _static_assert() {}
 }
+
+unsafe impl Pod for () {}
 
 unsafe impl Pod for i8 {}
 unsafe impl Pod for i16 {}
@@ -171,5 +169,35 @@ unsafe impl<T: 'static> Pod for PhantomData<T> {}
 unsafe impl<T: Pod> Pod for [T] {}
 unsafe impl<T: Pod, const N: usize> Pod for [T; N] {}
 
+// Strict provenance approved way of checking raw pointer alignment without exposing the pointer
+const fn is_aligned<T>(ptr: *const T) -> bool {
+	let addr: usize = unsafe { mem::transmute(ptr) };
+	addr % mem::align_of::<T>() == 0
+}
+
 #[cfg(test)]
 mod tests;
+
+#[cfg(doc)]
+#[doc = include_str!("../readme.md")]
+fn readme() {}
+
+/// Reveals the evaluated value of a constant expression.
+///
+/// The result is a compiletime error: `expected an array with a fixed size of 0 elements, found one with N elements` where `N` is the value of the constant expression.
+///
+/// ```compile_fail
+/// struct Foo {
+/// 	field1: i8,
+/// 	field2: u16,
+/// }
+///
+/// dataview::reveal_const!(std::mem::size_of::<Foo>());
+/// ```
+#[doc(hidden)]
+#[macro_export]
+macro_rules! reveal_const {
+	($e:expr) => {
+		const _: [(); 0] = [(); $e];
+	};
+}
