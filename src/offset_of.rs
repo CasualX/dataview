@@ -10,6 +10,9 @@
 ///
 /// let offset = dataview::offset_of!(Data.float);
 /// assert_eq!(offset, 4);
+///
+/// const OFFSET: usize = dataview::offset_of!(Data.float);
+/// assert_eq!(OFFSET, 4);
 /// ```
 ///
 /// The syntax is `$ty.$field`.
@@ -33,15 +36,15 @@ macro_rules! __offset_of {
 		// This prevents auto-Deref from causing UB
 		let Ty { $($field)?: _, .. };
 		// Use MaybeUninit as the subject of the field offset
-		let mut uninit = ::core::mem::MaybeUninit::<Ty>::uninit();
-		let uninit_ptr = uninit.as_mut_ptr();
+		let uninit = ::core::mem::MaybeUninit::<Ty>::uninit();
+		let uninit_ptr = uninit.as_ptr();
 		// We've asserted that the field exists on the type
 		// No Deref coercion or dereferencing a reference
 		// Hope that's enough to keep the code safe
 		#[allow(unused_unsafe)]
 		unsafe {
-			let field_ptr = ::core::ptr::addr_of_mut!((*uninit_ptr).$($field)?);
-			(field_ptr as *mut u8).offset_from(uninit_ptr as *mut u8) as usize
+			let field_ptr = ::core::ptr::addr_of!((*uninit_ptr).$($field)?);
+			(field_ptr as *const u8).offset_from(uninit_ptr as *const u8) as usize
 		}
 	}};
 	([$($ty:tt)*] . $($field:tt)?) => {
@@ -67,6 +70,10 @@ macro_rules! __offset_of {
 /// let span = dataview::span_of!(Data.float);
 /// assert_eq!(span, 4..8);
 /// assert_eq!(span.len(), 4);
+///
+/// const SPAN: std::ops::Range<usize> = dataview::span_of!(Data.float);
+/// assert_eq!(SPAN, 4..8);
+/// assert_eq!(SPAN.len(), 4);
 /// ```
 ///
 /// The syntax is `$ty.$field`.
@@ -90,16 +97,16 @@ macro_rules! __span_of {
 		// This prevents auto-Deref from causing UB
 		let Ty { $($field)?: _, .. };
 		// Use MaybeUninit as the subject of the field offset
-		let mut uninit = ::core::mem::MaybeUninit::<Ty>::uninit();
-		let uninit_ptr = uninit.as_mut_ptr();
+		let uninit = ::core::mem::MaybeUninit::<Ty>::uninit();
+		let uninit_ptr = uninit.as_ptr();
 		// We've asserted that the field exists on the type
 		// No Deref coercion or dereferencing a reference
 		// Hope that's enough to keep the code safe
 		#[allow(unused_unsafe)]
 		unsafe {
-			let field_ptr = ::core::ptr::addr_of_mut!((*uninit_ptr).$($field)?);
-			let start = (field_ptr as *mut u8).offset_from(uninit_ptr as *mut u8) as usize;
-			let end = (field_ptr.offset(1) as *mut u8).offset_from(uninit_ptr as *mut u8) as usize;
+			let field_ptr = ::core::ptr::addr_of!((*uninit_ptr).$($field)?);
+			let start = (field_ptr as *const u8).offset_from(uninit_ptr as *const u8) as usize;
+			let end = (field_ptr.offset(1) as *const u8).offset_from(uninit_ptr as *const u8) as usize;
 			start..end
 		}
 	}};
