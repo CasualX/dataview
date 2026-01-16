@@ -45,6 +45,9 @@ mod derive_pod;
 mod field_offsets;
 mod offset_of;
 
+#[macro_use]
+mod embed;
+
 /// Types whose values can be safely transmuted between byte arrays of the same size.
 ///
 /// # Safety
@@ -170,8 +173,8 @@ unsafe impl<T: Pod> Pod for [T] {}
 unsafe impl<T: Pod, const N: usize> Pod for [T; N] {}
 
 // Strict provenance approved way of checking raw pointer alignment without exposing the pointer
-const fn is_aligned<T>(ptr: *const T) -> bool {
-	let addr: usize = unsafe { mem::transmute(ptr) };
+fn is_aligned<T>(ptr: *const T) -> bool {
+	let addr: usize = ptr.addr();
 	addr % mem::align_of::<T>() == 0
 }
 

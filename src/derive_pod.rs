@@ -38,6 +38,7 @@ macro_rules! derive_pod {
 	) => {
 		$crate::derive_pod_check_attrs!($(#$meta)*);
 
+		#[automatically_derived]
 		unsafe impl $crate::Pod for $name
 			where Self: 'static $(, $field_ty: $crate::Pod)* {}
 
@@ -62,6 +63,7 @@ macro_rules! derive_pod {
 	) => {
 		$crate::derive_pod_check_attrs!($(#$meta)*);
 
+		#[automatically_derived]
 		unsafe impl $crate::Pod for $name
 			where Self: 'static $($(, $field_ty: $crate::Pod)*)? {}
 

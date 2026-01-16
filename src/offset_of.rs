@@ -16,42 +16,21 @@
 /// ```
 ///
 /// The syntax is `$ty.$field`.
-///
-/// No support for tuples, tuple structs or unions.
-///
-/// No support for projecting through multiple fields.
 #[macro_export]
 macro_rules! offset_of {
 	($($tt:tt)*) => {
-		$crate::__offset_of!([] $($tt)*)
+		$crate::__offset_of2!([] $($tt)*)
 	};
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __offset_of {
-	([$($ty:tt)*] . $($field:ident)?) => {{
-		type Ty = $($ty)*;
-		// Assert that field exists on the type
-		// This prevents auto-Deref from causing UB
-		let Ty { $($field)?: _, .. };
-		// Use MaybeUninit as the subject of the field offset
-		let uninit = ::core::mem::MaybeUninit::<Ty>::uninit();
-		let uninit_ptr = uninit.as_ptr();
-		// We've asserted that the field exists on the type
-		// No Deref coercion or dereferencing a reference
-		// Hope that's enough to keep the code safe
-		#[allow(unused_unsafe)]
-		unsafe {
-			let field_ptr = ::core::ptr::addr_of!((*uninit_ptr).$($field)?);
-			(field_ptr as *const u8).offset_from(uninit_ptr as *const u8) as usize
-		}
-	}};
-	([$($ty:tt)*] . $($field:tt)?) => {
-		compile_error!("offset of tuple field not supported")
+macro_rules! __offset_of2 {
+	([$($ty:tt)*] . $($field:tt)*) => {
+		::core::mem::offset_of!($($ty)*, $($field)*)
 	};
 	([$($ty:tt)*] $tt:tt $($tail:tt)*) => {
-		$crate::__offset_of!([$($ty)* $tt] $($tail)*)
+		$crate::__offset_of2!([$($ty)* $tt] $($tail)*)
 	};
 	([$($ty:tt)*]) => {
 		compile_error!("missing field access")
@@ -91,7 +70,7 @@ macro_rules! span_of {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __span_of {
-	([$($ty:tt)*] . $($field:ident)?) => {{
+	([$($ty:tt)*] . $($field:ident)?) => {const {
 		type Ty = $($ty)*;
 		// Assert that field exists on the type
 		// This prevents auto-Deref from causing UB
