@@ -44,11 +44,11 @@ pub fn pod_derive(input: TokenStream) -> TokenStream {
 
 /// Derive macro calculates field offsets.
 ///
-/// The type must be a struct and must implement `Pod` or an error is raised.
+/// The type must be a struct with named fields.
 ///
-/// The derive macro adds an associated constant `FIELD_OFFSETS` to the type.
-/// `FIELD_OFFSETS` is an instance of a struct with `usize` fields for every field in the type.
-/// The value of each field is the offset of that field in the type.
+/// For every field, the derive macro adds an associated constant with the same
+/// name and visibility to the type. Each constant is a typed `Field` descriptor
+/// containing the byte offset of that field in the type.
 #[proc_macro_derive(FieldOffsets)]
 pub fn field_offsets(input: TokenStream) -> TokenStream {
 	let invoke: TokenStream = "::dataview::__field_offsets!".parse().unwrap();

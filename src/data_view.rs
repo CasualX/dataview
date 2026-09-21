@@ -1,4 +1,3 @@
-use core::{mem, ops, ptr, slice};
 use super::*;
 
 /// Read and write data to and from the underlying byte buffer.
@@ -132,10 +131,17 @@ impl DataView {
 		self.bytes.len()
 	}
 	/// Returns the number of elements that would fit a slice starting at the given offset.
+	///
+	/// Returns zero when `offset` is at or beyond the end of the view.
+	/// This does not check whether `offset` is suitably aligned for `T`.
+	///
+	/// # Compile-time errors
+	///
+	/// Calling this method with a zero-sized `T` is rejected.
 	#[inline]
 	pub const fn tail_len<T>(&self, offset: usize) -> usize {
 		const { assert!(mem::size_of::<T>() > 0); }
-		(self.bytes.len() - offset) / mem::size_of::<T>()
+		self.bytes.len().saturating_sub(offset) / mem::size_of::<T>()
 	}
 }
 

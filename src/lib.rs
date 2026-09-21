@@ -27,7 +27,7 @@ assert_eq!(dataview::bytes(&inst), &[0, 0, 255, 0]);
 
 #![no_std]
 
-use core::{mem, slice};
+use core::{mem, ops, ptr, slice};
 use core::marker::PhantomData;
 
 mod data_view;
@@ -38,12 +38,14 @@ pub use self::data_view::DataView;
 pub use ::derive_pod::Pod;
 
 #[cfg(feature = "derive_pod")]
-#[doc(hidden)]
-pub use ::derive_pod::FieldOffsets;
+#[doc(inline)]
+pub use ::derive_pod::FieldOffsets as Fields;
 
 mod derive_pod;
-mod field_offsets;
 mod offset_of;
+
+mod fields;
+pub use self::fields::*;
 
 #[macro_use]
 mod embed;
