@@ -4,7 +4,7 @@ DataView
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![crates.io](https://img.shields.io/crates/v/dataview.svg)](https://crates.io/crates/dataview)
 [![docs.rs](https://docs.rs/dataview/badge.svg)](https://docs.rs/dataview)
-[![Build status](https://github.com/CasualX/dataview/workflows/CI/badge.svg)](https://github.com/CasualX/dataview/actions)
+[![Gate](https://github.com/CasualX/dataview/actions/workflows/gate.yml/badge.svg)](https://github.com/CasualX/dataview/actions/workflows/gate.yml)
 
 The `Pod` trait marks types whose values can be safely transmuted between byte arrays of the same size.
 

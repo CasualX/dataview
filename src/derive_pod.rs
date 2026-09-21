@@ -47,6 +47,8 @@ macro_rules! derive_pod {
 			// This is magic implemented by the Rust compiler when instatiating transmute
 			const LEN: usize = 0usize $(+ ::core::mem::size_of::<$field_ty>())*;
 			let _ = ::core::mem::transmute::<$name, [u8; LEN]>;
+			// Assert that the type does not implement Drop
+			assert!(!::core::mem::needs_drop::<$name>());
 		};
 	};
 
@@ -72,6 +74,8 @@ macro_rules! derive_pod {
 			// This is magic implemented by the Rust compiler when instatiating transmute
 			const LEN: usize = 0usize $($(+ ::core::mem::size_of::<$field_ty>())*)?;
 			let _ = ::core::mem::transmute::<$name, [u8; LEN]>;
+			// Assert that the type does not implement Drop
+			assert!(!::core::mem::needs_drop::<$name>());
 		};
 	};
 
@@ -86,3 +90,17 @@ macro_rules! derive_pod {
 		compile_error!(concat!("cannot implement `Pod` for type `", stringify!($name), "`: unions are not allowed"));
 	};
 }
+
+/// The derive rejects types that require dropping.
+///
+/// ```compile_fail
+/// #[derive(dataview::Pod)]
+/// #[repr(C)]
+/// struct Resource(u8);
+///
+/// impl Drop for Resource {
+/// 	fn drop(&mut self) {}
+/// }
+/// ```
+#[cfg(doc)]
+fn reject_drop() {}

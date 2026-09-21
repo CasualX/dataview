@@ -143,3 +143,25 @@ fn test_slice_mut() {
 	assert_eq!(view.try_slice_mut::<u8>(check.len(), 0), Some(&mut [] as &mut [u8]));
 	assert!(matches!(view.try_slice_mut::<u8>(view.len(), 1), None));
 }
+
+#[test]
+fn test_try_operations_overflow() {
+	let bytes = &TEST_DATA.1;
+	let view = DataView::from(bytes);
+	let mut dest = 0_u8;
+
+	assert!(view.try_read::<u16>(usize::MAX).is_none());
+	assert!(view.try_read_into(usize::MAX, &mut dest).is_none());
+	assert!(view.try_get::<u16>(usize::MAX).is_none());
+	assert!(view.try_slice::<u16>(0, usize::MAX).is_none());
+	assert!(view.index((core::ops::Bound::Excluded(usize::MAX), core::ops::Bound::Excluded(usize::MAX))).is_none());
+	assert!(view.index(1..=usize::MAX).is_none());
+
+	let mut data = TEST_DATA;
+	let view = DataView::from_mut(&mut data.1);
+	assert!(view.try_get_mut::<u16>(usize::MAX).is_none());
+	assert!(view.try_slice_mut::<u16>(0, usize::MAX).is_none());
+	assert!(view.try_write(usize::MAX, &0_u8).is_none());
+	assert!(view.index_mut((core::ops::Bound::Excluded(usize::MAX), core::ops::Bound::Excluded(usize::MAX))).is_none());
+	assert!(view.index_mut(1..=usize::MAX).is_none());
+}

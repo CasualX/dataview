@@ -8,7 +8,7 @@
 macro_rules! embed {
 	($vis:vis $name:ident: [$ty:ty] = $path:expr) => {
 		$vis static $name: [$ty; include_bytes!($path).len() / ::core::mem::size_of::<$ty>()] = {
-			fn __assert_pod<T: ::dataview::Pod>() {}
+			fn __assert_pod<T: $crate::Pod>() {}
 			let _ = __assert_pod::<$ty>;
 			unsafe { ::core::mem::transmute(*include_bytes!($path)) }
 		};

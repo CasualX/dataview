@@ -55,7 +55,7 @@ mod embed;
 /// It must be safe to transmute between any byte array (with length equal to the size of the type) and `Self`.
 ///
 /// This is true for these primitive types: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`, `f32`, `f64`.
-/// The raw pointer types are not pod under strict provenance rules but can be through the 'int2ptr' feature.
+/// Raw pointer types are not pod under strict provenance rules.
 /// Primitives such as `str` and `bool` are not pod because not every valid byte pattern is a valid instance of these types.
 /// References or types with lifetimes are _never_ pod.
 ///
@@ -69,6 +69,8 @@ mod embed;
 ///   or [`#[repr(transparent)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent).
 /// * Must have every field's type implement `Pod` itself.
 /// * Must not have any padding between its fields, define dummy fields to cover the padding.
+/// * Must not require dropping, including through any of its fields.
+/// * Must not contain interior mutability.
 ///
 /// # Derive macro
 ///
@@ -162,21 +164,10 @@ unsafe impl Pod for usize {}
 unsafe impl Pod for f32 {}
 unsafe impl Pod for f64 {}
 
-#[cfg(feature = "int2ptr")]
-unsafe impl<T: 'static> Pod for *const T {}
-#[cfg(feature = "int2ptr")]
-unsafe impl<T: 'static> Pod for *mut T {}
-
 unsafe impl<T: 'static> Pod for PhantomData<T> {}
 
 unsafe impl<T: Pod> Pod for [T] {}
 unsafe impl<T: Pod, const N: usize> Pod for [T; N] {}
-
-// Strict provenance approved way of checking raw pointer alignment without exposing the pointer
-fn is_aligned<T>(ptr: *const T) -> bool {
-	let addr: usize = ptr.addr();
-	addr % mem::align_of::<T>() == 0
-}
 
 #[cfg(test)]
 mod tests;

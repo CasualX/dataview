@@ -96,6 +96,7 @@ impl DataView {
 	/// Returns the number of elements that would fit a slice starting at the given offset.
 	#[inline]
 	pub const fn tail_len<T>(&self, offset: usize) -> usize {
+		const { assert!(mem::size_of::<T>() > 0); }
 		(self.bytes.len() - offset) / mem::size_of::<T>()
 	}
 }
@@ -107,7 +108,7 @@ impl DataView {
 	/// Reads a (potentially unaligned) value from the view.
 	#[inline]
 	pub fn try_read<T: Pod>(&self, offset: usize) -> Option<T> {
-		let index = offset..offset + mem::size_of::<T>();
+		let index = offset..offset.wrapping_add(mem::size_of::<T>());
 		let bytes = self.bytes.get(index)?;
 		unsafe {
 			let src = bytes.as_ptr() as *const T;
@@ -126,10 +127,12 @@ impl DataView {
 	/// Reads a (potentially unaligned) value from the view.
 	#[inline]
 	pub unsafe fn read_unchecked<T: Pod>(&self, offset: usize) -> T {
-		let index = offset..offset + mem::size_of::<T>();
-		let bytes = self.bytes.get_unchecked(index);
-		let src = bytes.as_ptr() as *const T;
-		ptr::read_unaligned(src)
+		unsafe {
+			let index = offset..offset + mem::size_of::<T>();
+			let bytes = self.bytes.get_unchecked(index);
+			let src = bytes.as_ptr() as *const T;
+			ptr::read_unaligned(src)
+		}
 	}
 }
 
@@ -140,7 +143,7 @@ impl DataView {
 	/// Reads a (potentially unaligned) value from the view into the destination.
 	#[inline]
 	pub fn try_read_into<T: ?Sized + Pod>(&self, offset: usize, dest: &mut T) -> Option<()> {
-		let index = offset..offset + mem::size_of_val(dest);
+		let index = offset..offset.wrapping_add(mem::size_of_val(dest));
 		let bytes = self.bytes.get(index)?;
 		unsafe {
 			let src = bytes.as_ptr();
@@ -161,11 +164,13 @@ impl DataView {
 	/// Reads a (potentially unaligned) value from the view into the destination.
 	#[inline]
 	pub unsafe fn read_into_unchecked<T: ?Sized + Pod>(&self, offset: usize, dest: &mut T) {
-		let index = offset..offset + mem::size_of_val(dest);
-		let bytes = self.bytes.get_unchecked(index);
-		let src = bytes.as_ptr();
-		let dst = bytes_mut(dest).as_mut_ptr();
-		ptr::copy_nonoverlapping(src, dst, bytes.len());
+		unsafe {
+			let index = offset..offset + mem::size_of_val(dest);
+			let bytes = self.bytes.get_unchecked(index);
+			let src = bytes.as_ptr();
+			let dst = bytes_mut(dest).as_mut_ptr();
+			ptr::copy_nonoverlapping(src, dst, bytes.len());
+		}
 	}
 }
 
@@ -176,10 +181,10 @@ impl DataView {
 	/// Gets an aligned reference into the view.
 	#[inline]
 	pub fn try_get<T: Pod>(&self, offset: usize) -> Option<&T> {
-		let index = offset..offset + mem::size_of::<T>();
+		let index = offset..offset.wrapping_add(mem::size_of::<T>());
 		let bytes = self.bytes.get(index)?;
 		let unaligned_ptr = bytes.as_ptr() as *const T;
-		if !is_aligned(unaligned_ptr) {
+		if !unaligned_ptr.is_aligned() {
 			return None;
 		}
 		unsafe {
@@ -198,9 +203,11 @@ impl DataView {
 	/// Gets an aligned reference into the view.
 	#[inline]
 	pub unsafe fn get_unchecked<T: Pod>(&self, offset: usize) -> &T {
-		let index = offset..offset + mem::size_of::<T>();
-		let bytes = self.bytes.get_unchecked(index);
-		&*(bytes.as_ptr() as *const T)
+		unsafe {
+			let index = offset..offset + mem::size_of::<T>();
+			let bytes = self.bytes.get_unchecked(index);
+			&*(bytes.as_ptr() as *const T)
+		}
 	}
 }
 
@@ -211,10 +218,10 @@ impl DataView {
 	/// Gets an aligned mutable reference into the view.
 	#[inline]
 	pub fn try_get_mut<T: Pod>(&mut self, offset: usize) -> Option<&mut T> {
-		let index = offset..offset + mem::size_of::<T>();
+		let index = offset..offset.wrapping_add(mem::size_of::<T>());
 		let bytes = self.bytes.get_mut(index)?;
 		let unaligned_ptr = bytes.as_mut_ptr() as *mut T;
-		if !is_aligned(unaligned_ptr) {
+		if !unaligned_ptr.is_aligned() {
 			return None;
 		}
 		unsafe {
@@ -233,9 +240,11 @@ impl DataView {
 	/// Gets an aligned mutable reference into the view.
 	#[inline]
 	pub unsafe fn get_unchecked_mut<T: Pod>(&mut self, offset: usize) -> &mut T {
-		let index = offset..offset + mem::size_of::<T>();
-		let bytes = self.bytes.get_unchecked_mut(index);
-		&mut *(bytes.as_mut_ptr() as *mut T)
+		unsafe {
+			let index = offset..offset + mem::size_of::<T>();
+			let bytes = self.bytes.get_unchecked_mut(index);
+			&mut *(bytes.as_mut_ptr() as *mut T)
+		}
 	}
 }
 
@@ -246,10 +255,10 @@ impl DataView {
 	/// Gets an aligned slice into the view.
 	#[inline]
 	pub fn try_slice<T: Pod>(&self, offset: usize, len: usize) -> Option<&[T]> {
-		let index = offset..offset + usize::checked_mul(len, mem::size_of::<T>())?;
+		let index = offset..offset.wrapping_add(len.checked_mul(mem::size_of::<T>())?);
 		let bytes = self.bytes.get(index)?;
 		let unaligned_ptr = bytes.as_ptr() as *const T;
-		if !is_aligned(unaligned_ptr) {
+		if !unaligned_ptr.is_aligned() {
 			return None;
 		}
 		unsafe {
@@ -268,9 +277,11 @@ impl DataView {
 	/// Gets an aligned slice into the view.
 	#[inline]
 	pub unsafe fn slice_unchecked<T: Pod>(&self, offset: usize, len: usize) -> &[T] {
-		let index = offset..offset + len * mem::size_of::<T>();
-		let bytes = self.bytes.get_unchecked(index);
-		slice::from_raw_parts(bytes.as_ptr() as *const T, len)
+		unsafe {
+			let index = offset..offset + len * mem::size_of::<T>();
+			let bytes = self.bytes.get_unchecked(index);
+			slice::from_raw_parts(bytes.as_ptr() as *const T, len)
+		}
 	}
 }
 
@@ -281,10 +292,10 @@ impl DataView {
 	/// Gets an aligned mutable slice into the view.
 	#[inline]
 	pub fn try_slice_mut<T: Pod>(&mut self, offset: usize, len: usize) -> Option<&mut [T]> {
-		let index = offset..offset + usize::checked_mul(len, mem::size_of::<T>())?;
+		let index = offset..offset.wrapping_add(len.checked_mul(mem::size_of::<T>())?);
 		let bytes = self.bytes.get_mut(index)?;
 		let unaligned_ptr = bytes.as_mut_ptr() as *mut T;
-		if !is_aligned(unaligned_ptr) {
+		if !unaligned_ptr.is_aligned() {
 			return None;
 		}
 		unsafe {
@@ -303,9 +314,11 @@ impl DataView {
 	/// Gets an aligned mutable slice into the view.
 	#[inline]
 	pub unsafe fn slice_unchecked_mut<T: Pod>(&mut self, offset: usize, len: usize) -> &mut [T] {
-		let index = offset..offset + len * mem::size_of::<T>();
-		let bytes = self.bytes.get_unchecked_mut(index);
-		slice::from_raw_parts_mut(bytes.as_mut_ptr() as *mut T, len)
+		unsafe {
+			let index = offset..offset + len * mem::size_of::<T>();
+			let bytes = self.bytes.get_unchecked_mut(index);
+			slice::from_raw_parts_mut(bytes.as_mut_ptr() as *mut T, len)
+		}
 	}
 }
 
@@ -316,7 +329,7 @@ impl DataView {
 	/// Writes a value into the view.
 	#[inline]
 	pub fn try_write<T: ?Sized + Pod>(&mut self, offset: usize, value: &T) -> Option<()> {
-		let index = offset..offset + mem::size_of_val(value);
+		let index = offset..offset.wrapping_add(mem::size_of_val(value));
 		let bytes = self.bytes.get_mut(index)?;
 		bytes.copy_from_slice(crate::bytes(value));
 		Some(())
@@ -333,9 +346,11 @@ impl DataView {
 	/// Writes a value into the view.
 	#[inline]
 	pub unsafe fn write_unchecked<T: ?Sized + Pod>(&mut self, offset: usize, value: &T) {
-		let index = offset..offset + mem::size_of_val(value);
-		let bytes = self.bytes.get_unchecked_mut(index);
-		ptr::copy_nonoverlapping(crate::bytes(value).as_ptr(), bytes.as_mut_ptr(), bytes.len());
+		unsafe {
+			let index = offset..offset + mem::size_of_val(value);
+			let bytes = self.bytes.get_unchecked_mut(index);
+			ptr::copy_nonoverlapping(crate::bytes(value).as_ptr(), bytes.as_mut_ptr(), bytes.len());
+		}
 	}
 }
 
@@ -348,11 +363,11 @@ impl DataView {
 		let start = match range.start_bound() {
 			ops::Bound::Unbounded => 0,
 			ops::Bound::Included(&start) => start,
-			ops::Bound::Excluded(&start) => start + 1,
+			ops::Bound::Excluded(&start) => start.wrapping_add(1),
 		};
 		let end = match range.end_bound() {
 			ops::Bound::Unbounded => self.len(),
-			ops::Bound::Included(&end) => end + 1,
+			ops::Bound::Included(&end) => end.wrapping_add(1),
 			ops::Bound::Excluded(&end) => end,
 		};
 		let bytes = self.bytes.get(start..end)?;
@@ -364,11 +379,11 @@ impl DataView {
 		let start = match range.start_bound() {
 			ops::Bound::Unbounded => 0,
 			ops::Bound::Included(&start) => start,
-			ops::Bound::Excluded(&start) => start + 1,
+			ops::Bound::Excluded(&start) => start.wrapping_add(1),
 		};
 		let end = match range.end_bound() {
 			ops::Bound::Unbounded => self.len(),
-			ops::Bound::Included(&end) => end + 1,
+			ops::Bound::Included(&end) => end.wrapping_add(1),
 			ops::Bound::Excluded(&end) => end,
 		};
 		let bytes = self.bytes.get_mut(start..end)?;

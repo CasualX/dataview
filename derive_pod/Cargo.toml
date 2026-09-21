@@ -2,7 +2,7 @@
 name = "derive_pod"
 version = "0.1.2"
 authors = ["Casper <CasualX@users.noreply.github.com>"]
-edition = "2018"
+edition = "2024"
 license = "MIT"
 
 description = "Implement the Pod trait safely with a derive macro."

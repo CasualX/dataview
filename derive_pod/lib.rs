@@ -14,6 +14,8 @@ use proc_macro::*;
 ///   or [`#[repr(transparent)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent).
 /// * Must have every field's type implement `Pod` itself.
 /// * Must not have any padding between its fields, define dummy fields to cover the padding.
+/// * Must not require dropping, including through any of its fields.
+/// * Must not contain interior mutability.
 ///
 /// Note that it is legal for pod types to be a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts).
 ///
