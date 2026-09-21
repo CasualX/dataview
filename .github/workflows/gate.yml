@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, beta, nightly]
+        rust: [1.85, stable, beta, nightly]
 
     steps:
       - name: Checkout sources

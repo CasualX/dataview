@@ -84,7 +84,7 @@ pub unsafe trait Pod: 'static {}
 /// assert_eq!(v, 0);
 /// ```
 #[inline]
-pub fn zeroed<T: Pod>() -> T {
+pub const fn zeroed<T: Pod>() -> T {
 	unsafe { mem::MaybeUninit::zeroed().assume_init() }
 }
 
@@ -95,14 +95,14 @@ pub fn zeroed<T: Pod>() -> T {
 /// assert_eq!(dataview::bytes(&v), &[0xcd, 0xcd, 0xcd, 0xcd]);
 /// ```
 #[inline]
-pub fn bytes<T: ?Sized + Pod>(src: &T) -> &[u8] {
-	unsafe { slice::from_raw_parts(src as *const _ as *const u8, mem::size_of_val(src)) }
+pub const fn bytes<T: ?Sized + Pod>(value: &T) -> &[u8] {
+	unsafe { slice::from_raw_parts(value as *const _ as *const u8, mem::size_of_val(value)) }
 }
 
 /// Returns the object's memory as a mutable byte slice.
 #[inline]
-pub fn bytes_mut<T: ?Sized + Pod>(src: &mut T) -> &mut [u8] {
-	unsafe { slice::from_raw_parts_mut(src as *mut _ as *mut u8, mem::size_of_val(src)) }
+pub const fn bytes_mut<T: ?Sized + Pod>(value: &mut T) -> &mut [u8] {
+	unsafe { slice::from_raw_parts_mut(value as *mut _ as *mut u8, mem::size_of_val(value)) }
 }
 
 /// Helper trait to provide methods directly on the pod types.
