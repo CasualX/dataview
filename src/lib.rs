@@ -94,7 +94,7 @@ The application can describe the latest `Record` layout once, while `RecordView`
 
 #![no_std]
 
-use core::{mem, ops, ptr, slice};
+use core::{fmt, mem, ops, ptr, slice};
 use core::marker::PhantomData;
 
 mod data_view;

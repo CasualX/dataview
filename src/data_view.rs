@@ -418,11 +418,11 @@ impl DataView {
 		let start = match range.start_bound() {
 			ops::Bound::Unbounded => 0,
 			ops::Bound::Included(&start) => start,
-			ops::Bound::Excluded(&start) => start.wrapping_add(1),
+			ops::Bound::Excluded(&start) => start.checked_add(1)?,
 		};
 		let end = match range.end_bound() {
 			ops::Bound::Unbounded => self.len(),
-			ops::Bound::Included(&end) => end.wrapping_add(1),
+			ops::Bound::Included(&end) => end.checked_add(1)?,
 			ops::Bound::Excluded(&end) => end,
 		};
 		let bytes = self.bytes.get(start..end)?;
@@ -434,11 +434,11 @@ impl DataView {
 		let start = match range.start_bound() {
 			ops::Bound::Unbounded => 0,
 			ops::Bound::Included(&start) => start,
-			ops::Bound::Excluded(&start) => start.wrapping_add(1),
+			ops::Bound::Excluded(&start) => start.checked_add(1)?,
 		};
 		let end = match range.end_bound() {
 			ops::Bound::Unbounded => self.len(),
-			ops::Bound::Included(&end) => end.wrapping_add(1),
+			ops::Bound::Included(&end) => end.checked_add(1)?,
 			ops::Bound::Excluded(&end) => end,
 		};
 		let bytes = self.bytes.get_mut(start..end)?;

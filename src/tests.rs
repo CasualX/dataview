@@ -165,3 +165,107 @@ fn test_try_operations_overflow() {
 	assert!(view.index_mut((core::ops::Bound::Excluded(usize::MAX), core::ops::Bound::Excluded(usize::MAX))).is_none());
 	assert!(view.index_mut(1..=usize::MAX).is_none());
 }
+
+#[test]
+fn test_index() {
+	let bytes = &TEST_DATA.1;
+	let view = DataView::from(bytes);
+
+	assert_eq!(view.index(..).unwrap().as_ref(), &bytes[..]);
+	assert_eq!(view.index(2..).unwrap().as_ref(), &bytes[2..]);
+	assert_eq!(view.index(..4).unwrap().as_ref(), &bytes[..4]);
+	assert_eq!(view.index(2..4).unwrap().as_ref(), &bytes[2..4]);
+	assert_eq!(view.index(2..=4).unwrap().as_ref(), &bytes[2..=4]);
+
+	assert!(view.index(5..4).is_none());
+	assert!(view.index(9..).is_none());
+}
+
+#[test]
+fn test_index_mut() {
+	let mut data = TEST_DATA;
+	let view = DataView::from_mut(&mut data.1);
+
+	view.index_mut(2..5).unwrap().as_mut().fill(0xff);
+
+	assert_eq!(data.1, [0, 1, 0xff, 0xff, 0xff, 5, 6, 7]);
+}
+
+#[test]
+fn test_index_bound_overflow() {
+	let bytes = &TEST_DATA.1;
+	let view = DataView::from(bytes);
+
+	// Excluded(MAX) means MAX + 1, which is not representable.
+	assert!(view.index((
+		core::ops::Bound::Excluded(usize::MAX),
+		core::ops::Bound::Unbounded,
+	)).is_none());
+
+	// Included(MAX) means an exclusive end of MAX + 1,
+	// which is not representable.
+	assert!(view.index(..=usize::MAX).is_none());
+}
+
+#[test]
+fn test_index_mut_bound_overflow() {
+	let mut data = TEST_DATA;
+	let view = DataView::from_mut(&mut data.1);
+
+	assert!(view.index_mut((
+		core::ops::Bound::Excluded(usize::MAX),
+		core::ops::Bound::Unbounded,
+	)).is_none());
+
+	assert!(view.index_mut(..=usize::MAX).is_none());
+}
+
+#[test]
+#[should_panic(expected = "invalid offset")]
+fn test_index_operator_bound_overflow() {
+	let bytes = &TEST_DATA.1;
+	let view = DataView::from(bytes);
+
+	let _ = &view[..=usize::MAX];
+}
+
+#[test]
+#[should_panic(expected = "invalid offset")]
+fn test_index_mut_operator_bound_overflow() {
+	let mut data = TEST_DATA;
+	let view = DataView::from_mut(&mut data.1);
+
+	let _ = &mut view[..=usize::MAX];
+}
+
+#[test]
+fn test_write() {
+	let mut bytes = [0u8; 8];
+	let view = DataView::from_mut(&mut bytes);
+
+	let value = 0x44332211_u32;
+
+	assert_eq!(Some(()), view.try_write(2, &value));
+	assert_eq!(view.read::<u32>(2), value);
+
+	view.write(0, &value);
+	assert_eq!(view.read::<u32>(0), value);
+
+	unsafe {
+		view.write_unchecked(4, &value);
+	}
+	assert_eq!(view.read::<u32>(4), value);
+}
+
+#[test]
+fn test_tail_len() {
+	let bytes = &TEST_DATA.1;
+	let view = DataView::from(bytes);
+
+	assert_eq!(view.tail_len::<u8>(0), 8);
+	assert_eq!(view.tail_len::<u16>(0), 4);
+	assert_eq!(view.tail_len::<u32>(1), 1);
+	assert_eq!(view.tail_len::<u32>(4), 1);
+	assert_eq!(view.tail_len::<u32>(8), 0);
+	assert_eq!(view.tail_len::<u32>(usize::MAX), 0);
+}

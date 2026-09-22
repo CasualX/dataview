@@ -136,6 +136,12 @@ impl<ContainerT, FieldT> Clone for Field<ContainerT, FieldT> {
 	}
 }
 
+impl<ContainerT, FieldT> fmt::Debug for Field<ContainerT, FieldT> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "Field<{}, {}>({})", core::any::type_name::<ContainerT>(), core::any::type_name::<FieldT>(), self.offset)
+	}
+}
+
 impl<ContainerT, FieldT> Eq for Field<ContainerT, FieldT> {}
 impl<ContainerT, FieldT> PartialEq for Field<ContainerT, FieldT> {
 	#[inline]
@@ -178,4 +184,30 @@ macro_rules! __field_offsets {
 			)*
 		}
 	};
+}
+
+#[test]
+fn test_field() {
+	#[repr(C)]
+	struct Inner {
+		a: u16,
+		b: u32,
+	}
+
+	#[repr(C)]
+	struct Outer {
+		x: u8,
+		inner: Inner,
+	}
+
+	const INNER: Field<Outer, Inner> = Field!(Outer.inner);
+	const B: Field<Inner, u32> = Field!(Inner.b);
+	const NESTED: Field<Outer, u32> = Field!(Outer.inner.b);
+
+	assert_eq!(INNER.offset(), mem::offset_of!(Outer, inner));
+	assert_eq!(B.offset(), mem::offset_of!(Inner, b));
+	assert_eq!(NESTED.offset(), mem::offset_of!(Outer, inner.b));
+
+	assert_eq!(INNER + B, NESTED);
+	assert_eq!(INNER.then(B), NESTED);
 }
