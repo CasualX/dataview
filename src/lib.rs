@@ -1,28 +1,95 @@
 /*!
-The [`Pod` trait](Pod) marks types whose values can be safely transmuted between byte arrays of the same size.
+Provides utilities for working with plain data as its in-memory byte representation.
 
-The [`DataView` type](DataView) defines read and write data APIs to an underlying byte buffer.
+The central [`Pod`] trait marks types for which every possible byte pattern is a valid value.
+This makes it sound to zero-initialize them, view them as bytes, fill them from raw storage, and copy typed values to and from byte buffers.
 
-# Examples
+Typical uses include binary file data, memory-mapped structures, network or device buffers, and memory read from another process.
 
-```
+# Plain data
+
+Deriving [`Pod`] checks that a struct has a suitable representation, contains only `Pod` fields, has no padding, and does not require dropping.
+
+A `Pod` value can be created zero-initialized and exposed directly as bytes:
+
+```rust
 #[derive(dataview::Pod)]
 #[repr(C)]
-struct MyType {
-	field: i32,
+struct Header {
+	magic: u32,
+	version: u16,
+	flags: u16,
+	count: u32,
 }
 
-// Construct a zero initialized instance
-let mut inst: MyType = dataview::zeroed();
-assert_eq!(inst.field, 0);
+let mut header: Header = dataview::zeroed();
 
-// Use DataView to access the instance
-let view = dataview::DataView::from_mut(&mut inst);
-view.write(2, &255_u8);
+// A file, device, or process-memory API can fill the value directly.
+let destination: &mut [u8] = dataview::bytes_mut(&mut header);
 
-// Create a byte view over the instance
-assert_eq!(dataview::bytes(&inst), &[0, 0, 255, 0]);
+// And a populated value can be passed back to an API expecting bytes.
+let source: &[u8] = dataview::bytes(&header);
 ```
+
+No serialization or conversion takes place: these functions expose the value's native in-memory representation.
+
+# Byte buffers
+
+[`DataView`] is useful when the underlying storage is a byte buffer rather than a single typed value. It reads and writes `Pod` values at byte offsets:
+
+```rust
+let buffer = [0u8; 64];
+let view = dataview::DataView::from(&buffer[..]);
+
+let flags = view.read::<u16>(6);
+let count = view.read::<u32>(8);
+```
+
+`read` and `write` support potentially unaligned values. Operations returning references or slices additionally require suitable alignment.
+
+# Typed fields
+
+[`struct@Field`] is a low-level building block for APIs that operate on structured byte buffers.
+
+A `Field<Container, T>` identifies a field by both its byte offset and its type. [`Field!`] creates one from ordinary Rust field syntax.
+
+This becomes useful when the rules for accessing a field depend on the underlying data. For example, an on-disk structure may begin with its own size so that newer versions can append fields while remaining compatible with older records:
+
+```rust
+#[repr(C)]
+struct Record {
+	size: u32,
+	flags: u32,
+	timestamp: u64,
+}
+
+const FLAGS: dataview::Field<Record, u32> = dataview::Field!(Record.flags);
+
+struct RecordView {
+	view: dataview::DataView,
+}
+
+impl RecordView {
+	fn get<T: dataview::Pod>(&self, field: dataview::Field<Record, T>) -> Option<T> {
+		let size = self.view.try_read::<u32>(0)? as usize;
+
+		if field.span().end > size {
+			return None;
+		}
+
+		self.view.try_read(field.offset())
+	}
+}
+```
+
+The application can describe the latest `Record` layout once, while `RecordView` decides which fields are actually present in a particular buffer.
+
+`Field` is therefore most useful as plumbing for higher-level typed views rather than as a replacement for byte offsets in ordinary `DataView` calls.
+
+# Representation
+
+`dataview` works with native memory representations; it is not a serialization format. Multi-byte values therefore use the target platform's native endianness, and user-defined `Pod` types must have a stable layout suitable for byte reinterpretation.
+
 */
 
 #![no_std]
@@ -177,23 +244,3 @@ mod tests;
 #[cfg(doc)]
 #[doc = include_str!("../readme.md")]
 fn readme() {}
-
-/// Reveals the evaluated value of a constant expression.
-///
-/// The result is a compiletime error: `expected an array with a fixed size of 0 elements, found one with N elements` where `N` is the value of the constant expression.
-///
-/// ```compile_fail
-/// struct Foo {
-/// 	field1: i8,
-/// 	field2: u16,
-/// }
-///
-/// dataview::reveal_const!(std::mem::size_of::<Foo>());
-/// ```
-#[doc(hidden)]
-#[macro_export]
-macro_rules! reveal_const {
-	($e:expr) => {
-		const _: [(); 0] = [(); $e];
-	};
-}
