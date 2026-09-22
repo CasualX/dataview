@@ -13,11 +13,8 @@ permissions:
 
 jobs:
   test:
-    name: Test (${{ matrix.rust }})
+    name: Test (nightly)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust: [1.85, stable, beta, nightly]
 
     steps:
       - name: Checkout sources
@@ -26,7 +23,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: nightly
 
       - name: Run tests
         run: cargo test

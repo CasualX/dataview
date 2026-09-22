@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![feature(macro_derive)]
 
 use dataview::{Field, Fields, Pod};
 

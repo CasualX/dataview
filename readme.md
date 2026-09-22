@@ -19,6 +19,8 @@ The `Pod` trait marks types whose values can be safely reinterpreted as bytes an
 
 Typical uses include binary file data, memory-mapped structures, device buffers, and memory read from another process.
 
+This experimental branch requires nightly Rust because its `Pod` and `FieldOffsets` macros use the unstable `macro_derive` feature.
+
 Library
 -------
 
@@ -43,6 +45,8 @@ Examples
 --------
 
 ```rust
+#![feature(macro_derive)]
+
 #[derive(dataview::Pod)]
 #[repr(C)]
 struct Header {

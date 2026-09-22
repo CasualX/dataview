@@ -1,6 +1,3 @@
-[workspace]
-members = [".", "./derive_pod"]
-
 [package]
 name = "dataview"
 version = "1.1.0"
@@ -15,12 +12,3 @@ repository = "https://github.com/CasualX/dataview"
 readme = "readme.md"
 keywords = ["binary", "data", "view", "pod"]
 categories = ["parser-implementations"]
-
-[package.metadata.docs.rs]
-features = ["derive_pod"]
-
-[features]
-default = ["derive_pod"]
-
-[dependencies]
-derive_pod = { path = "./derive_pod", version = "0.1.3", optional = true }

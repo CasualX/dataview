@@ -163,10 +163,16 @@ impl<ContainerT, FieldT, NestedT> core::ops::Add<Field<FieldT, NestedT>> for Fie
 	}
 }
 
-#[doc(hidden)]
+/// Derive macro calculates field offsets.
+///
+/// The type must be a struct with named fields.
+///
+/// For every field, the derive macro adds an associated constant with the same
+/// name and visibility to the type. Each constant is a typed [`struct@Field`] descriptor
+/// containing the byte offset of that field in the type.
 #[macro_export]
-macro_rules! __field_offsets {
-	(
+macro_rules! Fields {
+	derive() (
 		$(#$meta:tt)*
 		$vis:vis struct $name:ident {
 			$(
