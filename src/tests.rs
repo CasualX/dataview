@@ -18,6 +18,31 @@ fn test_zeroed() {
 	assert_eq!([0f32; 2], b);
 }
 
+const CONST_TRANSMUTE: u32 = transmute([0x78_u8, 0x56, 0x34, 0x12]);
+
+#[test]
+fn test_transmute() {
+	let bytes = [0x78_u8, 0x56, 0x34, 0x12];
+	assert_eq!(CONST_TRANSMUTE, u32::from_ne_bytes(bytes));
+	assert_eq!(transmute::<u32, [u8; 4]>(CONST_TRANSMUTE), bytes);
+}
+
+#[test]
+fn test_transmute_different_alignment() {
+	let foo = Foo([0x0123_4567, 0x89ab_cdef]);
+	let baz: Baz = transmute(foo);
+	assert_eq!(baz.0, [0x0123_4567, 0x89ab_cdef]);
+
+	// `Baz` deliberately does not implement `Copy`.
+	let foo: Foo = transmute(baz);
+	assert_eq!(foo.0, [0x0123_4567, 0x89ab_cdef]);
+}
+
+#[test]
+fn test_transmute_zst() {
+	assert_eq!(transmute::<(), [u8; 0]>(()), []);
+}
+
 //------------------------------------------------
 // DataView tests
 

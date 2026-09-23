@@ -192,6 +192,44 @@ pub const fn zeroed<T: Pod>() -> T {
 	unsafe { mem::MaybeUninit::zeroed().assume_init() }
 }
 
+/// Reinterprets the bits of a `Pod` value as another `Pod` type of the same size.
+///
+/// # Compile errors
+///
+/// Both types must implement [`Pod`]:
+///
+/// ```compile_fail
+/// let _: u8 = dataview::transmute(false);
+/// ```
+///
+/// They must also have the same size:
+///
+/// ```compile_fail
+/// let _: u32 = dataview::transmute(0_u64);
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// let bytes = [0x78, 0x56, 0x34, 0x12];
+/// let value: u32 = dataview::transmute(bytes);
+/// assert_eq!(value, u32::from_ne_bytes(bytes));
+/// ```
+#[inline]
+pub const fn transmute<T: Pod, U: Pod>(value: T) -> U {
+	const {
+		assert!(
+			mem::size_of::<T>() == mem::size_of::<U>(),
+			"cannot transmute between types of different sizes",
+		);
+	}
+
+	// Pod guarantees that all of `value`'s bytes are initialized and that every bit pattern is valid for `U`.
+	// The assertion above guarantees that `transmute_copy` reads exactly the storage occupied by `value`.
+	let value = mem::ManuallyDrop::new(value);
+	unsafe { mem::transmute_copy(&value) }
+}
+
 /// Returns the object's memory as a byte slice.
 ///
 /// ```
@@ -216,6 +254,8 @@ pub const fn bytes_mut<T: ?Sized + Pod>(value: &mut T) -> &mut [u8] {
 pub trait PodMethods {
 	/// Returns a zero-initialized instance of the type.
 	fn zeroed() -> Self where Self: Sized;
+	/// Reinterprets the bits of this value as another `Pod` type of the same size.
+	fn transmute<U: Pod>(self) -> U where Self: Sized;
 	/// Returns the object's memory as a byte slice.
 	fn as_bytes(&self) -> &[u8];
 	/// Returns the object's memory as a mutable byte slice.
@@ -230,6 +270,10 @@ impl<T: ?Sized + Pod> PodMethods for T {
 	#[inline]
 	fn zeroed() -> T where T: Sized {
 		zeroed()
+	}
+	#[inline]
+	fn transmute<U: Pod>(self) -> U where Self: Sized {
+		transmute(self)
 	}
 	#[inline]
 	fn as_bytes(&self) -> &[u8] {

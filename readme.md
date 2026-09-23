@@ -13,6 +13,7 @@ The `Pod` trait marks types whose values can be safely reinterpreted as bytes an
 `dataview` also provides:
 
 * `zeroed()` for constructing zero-initialized `Pod` values.
+* `transmute()` for reinterpreting equal-sized `Pod` values.
 * `bytes()` and `bytes_mut()` for exposing their in-memory representation.
 * `DataView` for reading and writing typed values inside byte buffers.
 
