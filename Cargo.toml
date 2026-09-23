@@ -3,9 +3,10 @@ members = [".", "./derive_pod"]
 
 [package]
 name = "dataview"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Casper <CasualX@users.noreply.github.com>"]
 edition = "2021"
+rust-version = "1.85"
 license = "MIT"
 
 description = "Safe transmute between types and byte arrays of the same size."
@@ -21,8 +22,9 @@ features = ["derive_pod"]
 [features]
 default = ["derive_pod"]
 
-# Treat raw pointers as POD, this is unsound under Strict Provenance rules
+# Kept for feature compatibility; pointer Pod impls were unsound under strict provenance.
 int2ptr = []
 
 [dependencies]
+dataview_1_1 = { package = "dataview", version = "1.1.0", default-features = false }
 derive_pod = { path = "./derive_pod", version = "0.1.2", optional = true }
