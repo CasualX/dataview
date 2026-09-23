@@ -43,6 +43,21 @@ fn test_transmute_zst() {
 	assert_eq!(transmute::<(), [u8; 0]>(()), []);
 }
 
+#[test]
+fn test_transmute_references() {
+	let mut foo = Foo([0x0123_4567, 0x89ab_cdef]);
+	let baz: &Baz = transmute_ref(&foo);
+	assert_eq!(baz.0, foo.0);
+	assert_eq!(foo.transmute_ref::<Baz>().0, foo.0);
+
+	let baz: &mut Baz = transmute_mut(&mut foo);
+	baz.0 = [1, 2];
+	foo.transmute_mut::<Baz>().0 = [3, 4];
+	assert_eq!(foo.0, [3, 4]);
+
+	assert_eq!(transmute_ref::<(), [u8; 0]>(&()), &[]);
+}
+
 //------------------------------------------------
 // DataView tests
 

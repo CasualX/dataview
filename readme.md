@@ -66,11 +66,7 @@ assert_eq!(header.version, 1);
 assert_eq!(header.flags, 2);
 
 // DataView is useful when working with a larger raw byte buffer.
-let buffer: [u8; 8] = [
-	0x44, 0x41, 0x54, 0x41,
-	0x01, 0x00,
-	0x02, 0x00,
-];
+let buffer: [u8; 8] = dataview::transmute(header);
 
 let view = dataview::DataView::from(&buffer);
 assert_eq!(view.read::<u16>(4), 1);

@@ -29,6 +29,9 @@ let destination: &mut [u8] = dataview::bytes_mut(&mut header);
 
 // And a populated value can be passed back to an API expecting bytes.
 let source: &[u8] = dataview::bytes(&header);
+
+// Or moved into a fixed-size byte array.
+let fixed: [u8; 12] = dataview::transmute(header);
 ```
 
 No serialization or conversion takes place: these functions expose the value's native in-memory representation.
@@ -232,6 +235,71 @@ pub const fn transmute<T: Pod, U: Pod>(value: T) -> U {
 	unsafe { mem::transmute_copy(&value) }
 }
 
+/// Casts a shared reference to another `Pod` type.
+///
+/// The types must have equal size, and `T` must have at least `U`'s alignment.
+/// Both requirements are checked at compile time.
+///
+/// ```
+/// let value = 0x1234_u32;
+/// assert_eq!(dataview::transmute_ref::<_, [u8; 4]>(&value), &value.to_ne_bytes());
+/// ```
+///
+/// ```compile_fail
+/// let bytes = [0_u8; 4];
+/// let _ = dataview::transmute_ref::<_, u32>(&bytes); // u32 requires stricter alignment
+/// ```
+#[inline]
+pub const fn transmute_ref<T: Pod, U: Pod>(value: &T) -> &U {
+	const {
+		assert!(
+			mem::size_of::<T>() == mem::size_of::<U>(),
+			"cannot transmute between types of different sizes",
+		);
+		assert!(
+			mem::align_of::<T>() >= mem::align_of::<U>(),
+			"cannot transmute to a type with stricter alignment",
+		);
+	}
+
+	// Pod guarantees initialized bytes, validity of every bit pattern, and no interior mutability.
+	// The checks above preserve the reference's extent and alignment.
+	unsafe { &*(value as *const T as *const U) }
+}
+
+/// Casts a mutable reference to another `Pod` type.
+///
+/// The types must have equal size, and `T` must have at least `U`'s alignment.
+/// Both requirements are checked at compile time.
+///
+/// ```
+/// let mut value = 0_u32;
+/// *dataview::transmute_mut::<_, [u8; 4]>(&mut value) = [1, 2, 3, 4];
+/// assert_eq!(value, u32::from_ne_bytes([1, 2, 3, 4]));
+/// ```
+///
+/// ```compile_fail
+/// let mut bytes = [0_u8; 4];
+/// let _ = dataview::transmute_mut::<_, u32>(&mut bytes); // u32 requires stricter alignment
+/// ```
+#[inline]
+pub const fn transmute_mut<T: Pod, U: Pod>(value: &mut T) -> &mut U {
+	const {
+		assert!(
+			mem::size_of::<T>() == mem::size_of::<U>(),
+			"cannot transmute between types of different sizes",
+		);
+		assert!(
+			mem::align_of::<T>() >= mem::align_of::<U>(),
+			"cannot transmute to a type with stricter alignment",
+		);
+	}
+
+	// The unique borrow is transferred to U for the returned reference's lifetime.
+	// Pod ensures any bytes written through U remain a valid T.
+	unsafe { &mut *(value as *mut T as *mut U) }
+}
+
 /// Returns the object's memory as a byte slice.
 ///
 /// ```
@@ -258,6 +326,10 @@ pub trait PodMethods {
 	fn zeroed() -> Self where Self: Sized;
 	/// Reinterprets the bits of this value as another `Pod` type of the same size.
 	fn transmute<U: Pod>(self) -> U where Self: Sized;
+	/// Casts this shared reference to another `Pod` type.
+	fn transmute_ref<U: Pod>(&self) -> &U where Self: Sized;
+	/// Casts this mutable reference to another `Pod` type.
+	fn transmute_mut<U: Pod>(&mut self) -> &mut U where Self: Sized;
 	/// Returns the object's memory as a byte slice.
 	fn as_bytes(&self) -> &[u8];
 	/// Returns the object's memory as a mutable byte slice.
@@ -276,6 +348,14 @@ impl<T: ?Sized + Pod> PodMethods for T {
 	#[inline]
 	fn transmute<U: Pod>(self) -> U where Self: Sized {
 		transmute(self)
+	}
+	#[inline]
+	fn transmute_ref<U: Pod>(&self) -> &U where Self: Sized {
+		transmute_ref(self)
+	}
+	#[inline]
+	fn transmute_mut<U: Pod>(&mut self) -> &mut U where Self: Sized {
+		transmute_mut(self)
 	}
 	#[inline]
 	fn as_bytes(&self) -> &[u8] {
