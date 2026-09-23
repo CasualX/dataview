@@ -84,8 +84,6 @@ impl RecordView {
 
 The application can describe the latest `Record` layout once, while `RecordView` decides which fields are actually present in a particular buffer.
 
-`Field` is therefore most useful as plumbing for higher-level typed views rather than as a replacement for byte offsets in ordinary `DataView` calls.
-
 # Representation
 
 `dataview` works with native memory representations; it is not a serialization format. Multi-byte values therefore use the target platform's native endianness, and user-defined `Pod` types must have a stable layout suitable for byte reinterpretation.
@@ -100,10 +98,47 @@ use core::marker::PhantomData;
 mod data_view;
 pub use self::data_view::DataView;
 
+/// Derive macro for the `Pod` trait.
+///
+/// The type is checked for requirements of the `Pod` trait:
+///
+/// * Must be annotated with [`#[repr(C)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprc)
+///   or [`#[repr(transparent)]`](https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent).
+/// * Must have every field's type implement `Pod` itself.
+/// * Must not have any padding between its fields, define dummy fields to cover the padding.
+/// * Must not require dropping, including through any of its fields.
+/// * Must not contain interior mutability.
+///
+/// Note that it is legal for pod types to be a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts).
+///
+/// # Compile errors
+///
+/// Error reporting is not very ergonomic due to how errors are detected:
+///
+/// * `error[E0277]: the trait bound $TYPE: Pod is not satisfied`
+///
+///   The struct contains a field whose type does not implement `Pod`.
+///
+/// * `error[E0512]: cannot transmute between types of different sizes, or dependently-sized types`
+///
+///   This error means your struct has padding as its size is not equal to a byte array of length equal to the sum of the size of its fields.
+///
+/// * `error: cannot implement Pod for type $TYPE`
+///
+///   Deriving `Pod` is not supported for this type.
+///
+///   This includes enums, unions and structs with generics or lifetimes.
 #[cfg(feature = "derive_pod")]
 #[doc(inline)]
 pub use ::derive_pod::Pod;
 
+/// Derive macro calculates field offsets.
+///
+/// The type must be a struct with named fields.
+///
+/// For every field, the derive macro adds an associated constant with the same
+/// name and visibility to the type. Each constant is a typed `Field` descriptor
+/// containing the byte offset of that field in the type.
 #[cfg(feature = "derive_pod")]
 #[doc(inline)]
 pub use ::derive_pod::FieldOffsets as Fields;
