@@ -98,6 +98,8 @@ use core::marker::PhantomData;
 mod data_view;
 pub use self::data_view::DataView;
 
+mod arch;
+
 /// Derive macro for the `Pod` trait.
 ///
 /// The type is checked for requirements of the `Pod` trait:
