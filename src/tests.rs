@@ -309,3 +309,12 @@ fn test_tail_len() {
 	assert_eq!(view.tail_len::<u32>(8), 0);
 	assert_eq!(view.tail_len::<u32>(usize::MAX), 0);
 }
+
+embed!(pub EMBEDDED_WORDS: Align8<[u16]> = "embed.rs");
+
+#[test]
+fn test_aligned_embed() {
+	assert_eq!(core::mem::align_of_val(&EMBEDDED_WORDS), 8);
+	assert_eq!(EMBEDDED_WORDS.0.as_ptr().addr() % 8, 0);
+	assert_eq!(bytes(&EMBEDDED_WORDS.0), include_bytes!("embed.rs"));
+}

@@ -101,6 +101,9 @@ use core::marker::PhantomData;
 mod data_view;
 pub use self::data_view::DataView;
 
+mod align;
+pub use self::align::*;
+
 mod arch;
 
 /// Derive macro for the `Pod` trait.
