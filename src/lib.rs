@@ -148,6 +148,9 @@ pub use ::derive_pod::Pod;
 #[doc(inline)]
 pub use ::derive_pod::FieldOffsets as Fields;
 
+mod bool_;
+pub use self::bool_::*;
+
 mod derive_pod;
 mod offset_of;
 
